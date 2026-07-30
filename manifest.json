@@ -1,0 +1,17 @@
+{
+  "name": "KerupukTally AI - Penghitung Kerupuk Pabrik",
+  "short_name": "KerupukTally AI",
+  "description": "Sistem Otomatisasi Hitung Kerupuk 125 Pcs & Quality Control Pabrik",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0b0f19",
+  "theme_color": "#06b6d4",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/3081/3081944.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

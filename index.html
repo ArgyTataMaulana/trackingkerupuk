@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KerupukTally AI - Penghitung Kerupuk & Quality Control Real-Time</title>
+  <!-- PWA Metadata & Manifest -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#06b6d4">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3081/3081944.png">
+
+  <!-- Google Fonts: Outfit & Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- Main Factory Dashboard Container -->
+  <div class="app-container">
+    
+    <!-- Top Navigation Header -->
+    <header class="factory-header">
+      <div class="brand-logo">
+        <div class="logo-icon">🫓</div>
+        <div class="logo-text">
+          <h1>KerupukTally <span class="badge-ai">AI LIVE</span></h1>
+          <p class="sub-status">Otomatisasi Hitung Kerupuk & QC Pabrik (125 Pcs / Keranjang)</p>
+        </div>
+      </div>
+      <div class="system-status">
+        <div class="status-indicator live-pulse">
+          <span class="dot"></span>
+          <span id="camera-status-text">KAMERA LIVE ACTIVE</span>
+        </div>
+        <div class="shift-time" id="live-clock">00:00:00</div>
+      </div>
+    </header>
+
+    <!-- Main Grid Content -->
+    <main class="dashboard-grid">
+      
+      <!-- Left Column: Real-time Camera Feed & Visual Canvas -->
+      <section class="camera-section card-glass">
+        <div class="camera-toolbar">
+          <div class="mode-badge">
+            <span class="icon">📷</span> Mode Stream: <strong id="current-stream-name">Overhead Camera (Live)</strong>
+          </div>
+          <div class="camera-actions">
+            <button id="btn-switch-camera" class="btn btn-outline" title="Ganti Kamera">🔄 Ganti Kamera</button>
+            <button id="btn-toggle-demo" class="btn btn-accent" title="Simulasi Uji Sampel Kerupuk">🧪 Load Demo Gambar</button>
+          </div>
+        </div>
+
+        <!-- Video & Canvas Overlay Box -->
+        <div class="viewport-wrapper" id="viewport-box">
+          <video id="webcam-feed" autoplay playsinline muted></video>
+          <canvas id="detection-canvas"></canvas>
+          
+          <!-- Live Overlay HUD -->
+          <div class="viewport-hud">
+            <div class="hud-box hud-target">
+              <span class="hud-label">TARGET KERANJANG</span>
+              <span class="hud-value" id="hud-target-val">125 <small>PCS</small></span>
+            </div>
+            <div class="hud-box hud-current">
+              <span class="hud-label">REAL-TIME COUNT</span>
+              <span class="hud-value" id="hud-current-val">0</span>
+            </div>
+          </div>
+
+          <!-- Alert Overlay for Basket Full -->
+          <div id="basket-full-overlay" class="overlay-modal hidden">
+            <div class="alert-content pulse-animation">
+              <div class="alert-icon">🔔</div>
+              <h2>KERANJANG FULL! (125 PCS)</h2>
+              <p>Pindahkan keranjang ini ke area tumpukan. Menyiapkan keranjang berikutnya...</p>
+              <button id="btn-dismiss-alert" class="btn btn-success-lg">✅ SIAP KERANJANG BARU (+1)</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Touch Controls Hint -->
+        <div class="canvas-controls-hint">
+          <span>💡 <strong>Sentuh / Ketuk Layar:</strong> Untuk menambah penanda kerupuk (🟢) atau menghapus penanda palsu (🔴).</span>
+        </div>
+      </section>
+
+      <!-- Right Column: Live Counters, Quality Control & Production Stats -->
+      <section class="stats-section">
+        
+        <!-- Big Number Counter Card -->
+        <div class="card-glass big-counter-card">
+          <div class="counter-header">
+            <h3>PROGRES KERANJANG SEKARANG</h3>
+            <span class="crate-badge" id="current-crate-number">Keranjang #1</span>
+          </div>
+
+          <div class="progress-bar-container">
+            <div class="progress-bar-fill" id="progress-bar-fill" style="width: 0%;"></div>
+          </div>
+
+          <div class="count-breakdown-grid">
+            <div class="count-box box-good">
+              <div class="count-icon">🟢</div>
+              <div class="count-details">
+                <span class="count-title">KERUPUK BAGUS (OK)</span>
+                <span class="count-number" id="count-good">0</span>
+                <span class="count-sub">Standar Isi Keranjang</span>
+              </div>
+            </div>
+
+            <div class="count-box box-defect">
+              <div class="count-icon">🔴</div>
+              <div class="count-details">
+                <span class="count-title">CACAT / REJECT (AFKIR)</span>
+                <span class="count-number" id="count-defect">0</span>
+                <span class="count-sub">Pecah / Gosong (Tidak Di-count)</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Quick Action Buttons -->
+          <div class="quick-counter-actions">
+            <button id="btn-manual-add" class="btn btn-secondary">+1 Manual Pcs</button>
+            <button id="btn-manual-reset" class="btn btn-danger-outline">🔄 Reset Hitungan Ini</button>
+            <button id="btn-quick-crate" class="btn btn-success">➕ Pasang 1 Keranjang Full (125 Pcs)</button>
+          </div>
+        </div>
+
+        <!-- Shift & Quality Control Statistics -->
+        <div class="card-glass qc-stats-card">
+          <div class="card-title-row">
+            <h3>📊 TOTAL PRODUKSI SHIFT INI</h3>
+            <span class="date-badge" id="shift-date">30 Jul 2026</span>
+          </div>
+
+          <div class="metrics-grid">
+            <div class="metric-item">
+              <span class="metric-label">Total Keranjang Terisi</span>
+              <span class="metric-value highlight" id="stat-total-crates">0 <small>Keranjang</small></span>
+            </div>
+
+            <div class="metric-item">
+              <span class="metric-label">Total Kerupuk Diproduksi</span>
+              <span class="metric-value" id="stat-total-pcs">0 <small>Pcs</small></span>
+            </div>
+
+            <div class="metric-item">
+              <span class="metric-label">Tingkat Cacat (Defect Rate)</span>
+              <span class="metric-value warning" id="stat-defect-rate">0.0%</span>
+            </div>
+
+            <div class="metric-item">
+              <span class="metric-label">Estimasi Berat Produksi</span>
+              <span class="metric-value" id="stat-total-weight">0.0 <small>kg</small></span>
+            </div>
+          </div>
+
+          <!-- Export & Report Actions -->
+          <div class="export-actions">
+            <button id="btn-whatsapp-export" class="btn btn-whatsapp">
+              <span class="icon">💬</span> Kirim Laporan ke WhatsApp Owner
+            </button>
+            <button id="btn-clear-shift" class="btn btn-link">Clear Shift Log</button>
+          </div>
+        </div>
+
+        <!-- Settings Drawer Toggle -->
+        <div class="card-glass settings-card">
+          <div class="settings-header">
+            <h4>⚙️ Pengaturan Standar Pabrik</h4>
+          </div>
+          <div class="settings-form">
+            <div class="form-group">
+              <label for="input-target-capacity">Target Kerupuk / Keranjang:</label>
+              <input type="number" id="input-target-capacity" value="125" min="1" max="1000">
+            </div>
+            <div class="form-group">
+              <label for="input-avg-weight">Rata-rata Berat / Pcs (Gram):</label>
+              <input type="number" id="input-avg-weight" value="15" step="0.5" min="1">
+            </div>
+            <div class="form-group checkbox-group">
+              <input type="checkbox" id="check-sound-alert" checked>
+              <label for="check-sound-alert">Bunyikan Audio Beep saat Full 125 Pcs</label>
+            </div>
+          </div>
+        </div>
+
+      </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="factory-footer">
+      <p>KerupukTally AI System &copy; 2026 — Solusi Otomatisasi Pabrik Kerupuk Modern</p>
+    </footer>
+  </div>
+
+  <!-- Audio Chimes for Full Alert -->
+  <audio id="audio-beep" preload="auto">
+    <source src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" type="audio/mpeg">
+  </audio>
+
+  <!-- Register PWA Service Worker for 100% Offline Capability -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+          .then(reg => console.log('Service Worker Registered (Offline Ready):', reg.scope))
+          .catch(err => console.log('Service Worker Registration Failed:', err));
+      });
+    }
+  </script>
+  <script src="app.js"></script>
+</body>
+</html>
