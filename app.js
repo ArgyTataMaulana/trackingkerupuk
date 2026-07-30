@@ -1,5 +1,5 @@
 /* ==========================================================================
-   KerupukTally AI - Core Logic & Computer Vision Engine
+   KerupukTally AI - Core Logic & Precise Computer Vision Engine
    ========================================================================== */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -45,6 +45,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const inputTargetCapacity = document.getElementById('input-target-capacity');
   const inputAvgWeight = document.getElementById('input-avg-weight');
   const checkSoundAlert = document.getElementById('check-sound-alert');
+  const inputSensitivity = document.getElementById('input-sensitivity');
 
   // System State
   let isDemoMode = false;
@@ -53,13 +54,13 @@ document.addEventListener('DOMContentLoaded', () => {
   let currentDeviceIndex = 0;
   let targetCapacity = parseInt(inputTargetCapacity.value) || 125;
   let avgWeightGram = parseFloat(inputAvgWeight.value) || 15;
+  let minBrightnessThreshold = parseInt(inputSensitivity?.value) || 185; // Raised threshold to prevent floor false-positives
   
   // Detection Memory & Manual Overrides
   let manualMarkers = [];
   let accumulatedGoodCount = 0;
   let detectedGoodCount = 0;
   let detectedDefectCount = 0;
-  let isDefectLocked = false;
   
   // Shift Persistent Data
   let shiftData = {
@@ -169,18 +170,17 @@ document.addEventListener('DOMContentLoaded', () => {
     bgCtx.fillStyle = '#1e2025';
     bgCtx.fillRect(0, 0, bgCanvas.width, bgCanvas.height);
 
-    const rows = 11;
-    const cols = 12;
+    const rows = 9;
+    const cols = 10;
     const radius = 28;
     
     manualMarkers = [];
 
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) {
-        const x = 55 + c * 68 + (Math.random() * 12 - 6);
-        const y = 55 + r * 54 + (Math.random() * 10 - 5);
-        // Add 2 defects for demonstration of Zero-Defect Lock
-        const isDefect = (r === 3 && c === 4) || (r === 7 && c === 8);
+        const x = 75 + c * 80 + (Math.random() * 10 - 5);
+        const y = 75 + r * 65 + (Math.random() * 8 - 4);
+        const isDefect = (r === 2 && c === 3) || (r === 6 && c === 7);
 
         manualMarkers.push({
           x: Math.round(x),
@@ -214,14 +214,9 @@ document.addEventListener('DOMContentLoaded', () => {
       
       if (m.isGood) {
         ctx.arc(m.x, m.y, m.radius || 26, 0, Math.PI * 2);
-        ctx.fillStyle = '#e2e8f0';
+        ctx.fillStyle = '#f1f5f9';
         ctx.fill();
         ctx.lineWidth = 3;
-        ctx.strokeStyle = '#94a3b8';
-        ctx.stroke();
-
-        ctx.beginPath();
-        ctx.arc(m.x, m.y, (m.radius || 26) * 0.5, 0, Math.PI * 2);
         ctx.strokeStyle = '#cbd5e1';
         ctx.stroke();
 
@@ -233,31 +228,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
         goodCount++;
       } else {
-        // DEFECT MARKER WITH PULSING WARNING
         ctx.ellipse(m.x, m.y, (m.radius || 26) * 0.8, (m.radius || 26) * 0.5, Math.PI / 4, 0, Math.PI * 2);
         ctx.fillStyle = '#f87171';
         ctx.fill();
 
-        // High visibility red pulsing ring
         ctx.beginPath();
         ctx.arc(m.x, m.y, (m.radius || 26) + 6, 0, Math.PI * 2);
         ctx.strokeStyle = '#ef4444';
         ctx.lineWidth = 4;
         ctx.stroke();
 
-        // Draw "X" Reject & Text "BUANG"
-        ctx.beginPath();
-        ctx.moveTo(m.x - 8, m.y - 8);
-        ctx.lineTo(m.x + 8, m.y + 8);
-        ctx.moveTo(m.x + 8, m.y - 8);
-        ctx.lineTo(m.x - 8, m.y + 8);
-        ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 3;
-        ctx.stroke();
-
         ctx.font = 'bold 11px Inter, sans-serif';
         ctx.fillStyle = '#ef4444';
-        ctx.fillText('AMBIL/BUANG', m.x - 30, m.y + (m.radius || 26) + 18);
+        ctx.fillText('🔴 CACAT', m.x - 22, m.y + (m.radius || 26) + 16);
 
         defectCount++;
       }
@@ -268,7 +251,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // --------------------------------------------------------------------------
-  // 3. Real-Time Vision Processing Loop
+  // 3. Precise Computer Vision & ROI Filtering (Prevents Floor False Positives)
   // --------------------------------------------------------------------------
   function processVideoFrame() {
     if (isDemoMode) return;
@@ -281,8 +264,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-      const frameData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const detectedBlobs = analyzeKerupukFrame(frameData);
+      // Define Basket Region of Interest (ROI) - Ignore outer floor area (outer 12% margin)
+      const roiMarginX = Math.round(canvas.width * 0.10);
+      const roiMarginY = Math.round(canvas.height * 0.10);
+      const roiWidth = canvas.width - (roiMarginX * 2);
+      const roiHeight = canvas.height - (roiMarginY * 2);
+
+      // Draw ROI Boundary Box for Operator Visual Guidance
+      ctx.strokeStyle = 'rgba(6, 182, 212, 0.6)';
+      ctx.lineWidth = 3;
+      ctx.setLineDash([8, 8]);
+      ctx.strokeRect(roiMarginX, roiMarginY, roiWidth, roiHeight);
+      ctx.setLineDash([]);
+
+      ctx.font = 'bold 12px Outfit, sans-serif';
+      ctx.fillStyle = '#06b6d4';
+      ctx.fillText('🎯 AREA HITUNG KERANJANG (ROI)', roiMarginX + 10, roiMarginY + 22);
+
+      // Process image data strictly inside ROI box
+      const frameData = ctx.getImageData(roiMarginX, roiMarginY, roiWidth, roiHeight);
+      const detectedBlobs = analyzeKerupukFrame(frameData, roiMarginX, roiMarginY);
 
       let goodCount = accumulatedGoodCount;
       let defectCount = 0;
@@ -299,13 +300,11 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
           ctx.strokeStyle = '#ef4444';
           ctx.lineWidth = 4;
-          ctx.setLineDash([4, 4]);
           ctx.stroke();
-          ctx.setLineDash([]);
 
-          ctx.font = 'bold 12px Inter, sans-serif';
+          ctx.font = 'bold 11px Inter, sans-serif';
           ctx.fillStyle = '#ef4444';
-          ctx.fillText('🔴 CACAT', b.x - 20, b.y + b.radius + 15);
+          ctx.fillText('🔴 CACAT', b.x - 20, b.y + b.radius + 14);
           defectCount++;
         }
       });
@@ -332,14 +331,16 @@ document.addEventListener('DOMContentLoaded', () => {
     requestAnimationFrame(processVideoFrame);
   }
 
-  function analyzeKerupukFrame(imageData) {
+  // Precise Blob & Contrast Filter
+  function analyzeKerupukFrame(imageData, offsetX, offsetY) {
     const width = imageData.width;
     const height = imageData.height;
     const data = imageData.data;
     
-    const step = 16;
+    // Adaptive step size based on resolution
+    const step = Math.max(28, Math.round(width / 32));
     const blobs = [];
-    const minLuminance = 135;
+    const minLuminance = minBrightnessThreshold; // User adjustable sensitivity
 
     for (let y = step; y < height - step; y += step) {
       for (let x = step; x < width - step; x += step) {
@@ -349,16 +350,28 @@ document.addEventListener('DOMContentLoaded', () => {
         const b = data[idx + 2];
         const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
 
+        // Must be significantly brighter than dark floor background
         if (luminance > minLuminance) {
-          const isGoodShape = (r > 155 && g > 155 && Math.abs(r - g) < 30);
-          const isDuplicate = blobs.some(blob => Math.hypot(blob.x - x, blob.y - y) < 28);
-          if (!isDuplicate) {
-            blobs.push({
-              x: x,
-              y: y,
-              radius: 20,
-              isGood: isGoodShape
-            });
+          // Check local peak contrast (kerupuk white center vs edge)
+          const leftIdx = (y * width + (x - 10)) * 4;
+          const rightIdx = (y * width + (x + 10)) * 4;
+          const leftLum = 0.299 * data[leftIdx] + 0.587 * data[leftIdx+1] + 0.114 * data[leftIdx+2];
+          const rightLum = 0.299 * data[rightIdx] + 0.587 * data[rightIdx+1] + 0.114 * data[rightIdx+2];
+
+          // Contrast peak check to ensure it's a real white kerupuk object
+          if (luminance >= leftLum && luminance >= rightLum) {
+            const isGoodShape = (r > 165 && g > 165 && Math.abs(r - g) < 25);
+            
+            // Distance suppression (minimum 36px separation between kerupuk centers)
+            const isDuplicate = blobs.some(blob => Math.hypot(blob.x - (x + offsetX), blob.y - (y + offsetY)) < 36);
+            if (!isDuplicate) {
+              blobs.push({
+                x: x + offsetX,
+                y: y + offsetY,
+                radius: 24,
+                isGood: isGoodShape
+              });
+            }
           }
         }
       }
@@ -368,7 +381,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // --------------------------------------------------------------------------
-  // 4. Interactive Touch Control (Tap to Remove Defect or Add Good Marker)
+  // 4. Interactive Touch Control
   // --------------------------------------------------------------------------
   canvas.addEventListener('click', (e) => {
     const rect = canvas.getBoundingClientRect();
@@ -378,11 +391,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const tapX = (e.clientX - rect.left) * scaleX;
     const tapY = (e.clientY - rect.top) * scaleY;
 
-    // Check if user tapped on a defective marker to remove it after picking it up physically
     const defectIndex = manualMarkers.findIndex(m => !m.isGood && Math.hypot(m.x - tapX, m.y - tapY) < 35);
 
     if (defectIndex !== -1) {
-      // Worker physically removed the defective kerupuk -> remove red marker!
       manualMarkers.splice(defectIndex, 1);
     } else {
       const existingIndex = manualMarkers.findIndex(m => Math.hypot(m.x - tapX, m.y - tapY) < 30);
@@ -404,7 +415,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // --------------------------------------------------------------------------
-  // 5. Zero-Defect Lock & Auto-Trigger System
+  // 5. Counters & Zero-Defect Enforcement
   // --------------------------------------------------------------------------
   function updateCounters(goodCount, defectCount) {
     detectedGoodCount = goodCount;
@@ -417,21 +428,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const percentage = Math.min(100, Math.round((goodCount / targetCapacity) * 100));
     progressBarFill.style.width = `${percentage}%`;
 
-    // ZERO-DEFECT STRICT ENFORCEMENT:
-    // If there are defects present in crate, lock crate approval!
     if (defectCount > 0) {
-      isDefectLocked = true;
       cameraStatusText.textContent = `⚠️ KUNCI QC: ADA ${defectCount} KERUPUK CACAT! AMBIL DAHULU`;
       cameraStatusText.parentElement.style.backgroundColor = 'rgba(239, 68, 68, 0.2)';
       cameraStatusText.parentElement.style.color = '#ef4444';
     } else {
-      isDefectLocked = false;
       cameraStatusText.textContent = isDemoMode ? 'MODE UJI DEMO SAMPLING' : 'KAMERA LIVE ACTIVE';
       cameraStatusText.parentElement.style.backgroundColor = 'rgba(16, 185, 129, 0.12)';
       cameraStatusText.parentElement.style.color = '#10b981';
     }
 
-    // ONLY approve crate when Good Count >= Target AND Defect Count === 0 (100% Zero Defect!)
     if (goodCount >= targetCapacity && defectCount === 0 && basketFullOverlay.classList.contains('hidden')) {
       triggerBasketFullAlert();
     }
@@ -478,6 +484,13 @@ document.addEventListener('DOMContentLoaded', () => {
     saveShiftData();
     alert(`✅ 1 Keranjang Full (${targetCapacity} Pcs 100% Zero-Defect) Berhasil Ditambahkan!`);
   });
+
+  // Sensitivity Slider Listener
+  if (inputSensitivity) {
+    inputSensitivity.addEventListener('input', (e) => {
+      minBrightnessThreshold = parseInt(e.target.value) || 185;
+    });
+  }
 
   // --------------------------------------------------------------------------
   // 6. Shift Data & LocalStorage

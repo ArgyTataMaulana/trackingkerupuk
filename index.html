@@ -84,7 +84,7 @@
 
         <!-- Touch Controls Hint -->
         <div class="canvas-controls-hint">
-          <span>💡 <strong>Sentuh / Ketuk Layar:</strong> Untuk menambah penanda kerupuk (🟢) atau menghapus penanda palsu (🔴).</span>
+          <span>💡 <strong>Area Biru Putus-putus:</strong> Merupakan Area Hitung Keranjang (Lantai Luar Diabaikan). Sentuh layar jika ingin menambah penanda manual.</span>
         </div>
       </section>
 
@@ -171,7 +171,7 @@
         <!-- Settings Drawer Toggle -->
         <div class="card-glass settings-card">
           <div class="settings-header">
-            <h4>⚙️ Pengaturan Standar Pabrik</h4>
+            <h4>⚙️ Pengaturan Standar & Sensitivitas</h4>
           </div>
           <div class="settings-form">
             <div class="form-group">
@@ -181,6 +181,10 @@
             <div class="form-group">
               <label for="input-avg-weight">Rata-rata Berat / Pcs (Gram):</label>
               <input type="number" id="input-avg-weight" value="15" step="0.5" min="1">
+            </div>
+            <div class="form-group">
+              <label for="input-sensitivity">Sensitivitas Kontras Kerupuk (150-240):</label>
+              <input type="number" id="input-sensitivity" value="185" min="140" max="240" step="5">
             </div>
             <div class="form-group checkbox-group">
               <input type="checkbox" id="check-sound-alert" checked>
